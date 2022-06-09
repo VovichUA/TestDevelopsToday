@@ -1,0 +1,60 @@
+version: '3.9'
+
+services:
+  nginx:
+    build:
+      context: .
+      dockerfile: .docker/nginx/Dockerfile
+    container_name: develops_today_nginx
+    volumes:
+      - ./:/var/www
+      - ./.docker/nginx/logs:/var/log/nginx
+    ports:
+      - "8082:80"
+    depends_on:
+      - app
+
+  app:
+    build:
+      context: .
+      dockerfile: .docker/php/Dockerfile
+    container_name: develops_today_php
+    volumes:
+      - ./app:/var/www/develops_today
+    environment:
+      # If you down want to use xDebug, set remote_enable=0
+      XDEBUG_CONFIG: "remote_enable=0"
+      PHP_IDE_CONFIG: "serverName=Docker"
+    depends_on:
+      - postgres
+
+  # PostgreSQL database container
+  postgres:
+    build:
+      context: .
+      dockerfile: .docker/postgresql/Dockerfile
+    container_name: develops_today_pgsql
+    volumes:
+      # Database volume
+      - database:/var/lib/postgresql/data
+      # Temp volume to allow using dumps
+      - ./.docker/postgresql/dumps/:/tmp/
+      - ./app:/app
+    ports:
+      - "54321:5432"
+    environment:
+      LC_ALL: C.UTF-8
+      POSTGRES_DB: develops_today
+      POSTGRES_USER: develops_today
+      POSTGRES_PASSWORD: develops_today
+    healthcheck:
+        test: [ "CMD-SHELL", "pg_isready -U develops_today -d develops_today" ]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+        start_period: 10s
+    restart: always
+
+volumes:
+  database:
+    driver: local
